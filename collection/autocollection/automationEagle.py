@@ -2,6 +2,9 @@
 """
 Wangmeng Song
 June 16, 2017
+chang
+Wangmeng Song
+June 16, 2017
 """
 
 
@@ -114,8 +117,12 @@ class EAGLE:
                          926, 928, 929, 930, 932, 933, 935, 936, 938, 939, 950, 951, 952, 956, 958,
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
+        startBjDate = self.getTheStartTime()
         for entityname in entityNameVec:
-            startDate = self.getTheStartTime() + datetime.timedelta(days=1)
+            if startBjDate is not None:
+                startDate = startBjDate + datetime.timedelta(days=1)
+            else:
+                startDate = datetime.date(2017, 05, 03)
             while startDate < datetime.datetime.now().date():
                 for i in xrange(len(timeTable)-1):
                     startTime = str(startDate) + timeTable[i]
