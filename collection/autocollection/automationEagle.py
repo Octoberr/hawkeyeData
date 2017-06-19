@@ -128,5 +128,5 @@ if __name__ == '__main__':
     print datetime.datetime.now(), "The program has started"
     scheduler = BlockingScheduler()
     # scheduler.add_job(some_job, 'interval', hours=1)
-    scheduler.add_job(main, 'interval', seconds=10)
+    scheduler.add_job(main, 'interval', hours=24)
     scheduler.start()
