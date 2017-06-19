@@ -121,6 +121,7 @@ class EAGLE:
 
 
 def main():
+    print "Started!"
     HK = EAGLE()
     HK.startGetHawkEyeData()
 
