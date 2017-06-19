@@ -1,4 +1,5 @@
 # coding:utf-8
+import os
 
 mongo_config = {}
 mongo_config['host'] = "localhost"
