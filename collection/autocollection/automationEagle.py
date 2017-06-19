@@ -64,6 +64,22 @@ class EAGLE:
         unixTime = int(time.mktime(time.strptime(nowtime, '%Y-%m-%d%H:%M:%S')))
         return unixTime
 
+    def unixtimeToBjTime(self, nowUnixtime):
+        bjtime = datetime.datetime.fromtimestamp(nowUnixtime).date()
+        return bjtime
+
+    def getTheStartTime(self):
+        from config import mongo_config
+        client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
+        db = client.swmdb
+        eagleyedates = db.eagleyedates
+        cursor = eagleyedates.find({}, {"unixEndTime": 1, "unixStartTime": 1}).sort([("unixEndTime", -1)]).limit(1)
+        for element in cursor:
+            getunixtime = element['unixEndTime']
+            bjtime = self.unixtimeToBjTime(getunixtime)
+            return bjtime
+
+
     def insertintomongo(self, hawkeyedate):
         from config import mongo_config
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
@@ -94,33 +110,35 @@ class EAGLE:
 
     def startGetHawkEyeData(self):
         timeTable = ["00:00:00", "12:00:00", "23:59:59"]
-        startDate = datetime.datetime.now().date() - datetime.timedelta(days=1)
         entityNameVec = [191, 901, 905, 906, 909, 910, 912, 913, 915, 918, 920, 921, 922, 923, 925,
                          926, 928, 929, 930, 932, 933, 935, 936, 938, 939, 950, 951, 952, 956, 958,
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
         for entityname in entityNameVec:
-            for i in xrange(len(timeTable)-1):
-                startTime = str(startDate) + timeTable[i]
-                endTime = str(startDate) + timeTable[i+1]
-                unixStartTime = self.bjtimeToUnixtime(startTime)
-                unixEndTime = self.bjtimeToUnixtime(endTime)
-                hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
-                if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
-                    continue
-                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
-                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
-                    self.insertintomongo(eagledates)
-                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
-                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
-                    self.insertintomongo(eagledates)
-                    self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
-                else:
-                    self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+            startDate = self.getTheStartTime() + datetime.timedelta(days=1)
+            while startDate < datetime.datetime.now().date():
+                for i in xrange(len(timeTable)-1):
+                    startTime = str(startDate) + timeTable[i]
+                    endTime = str(startDate) + timeTable[i+1]
+                    unixStartTime = self.bjtimeToUnixtime(startTime)
+                    unixEndTime = self.bjtimeToUnixtime(endTime)
+                    hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
+                    if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
+                        continue
+                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                        self.insertintomongo(eagledates)
+                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                        self.insertintomongo(eagledates)
+                        self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                    else:
+                        self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+                startDate += datetime.timedelta(days=1)
 
 
 def main():
-    print "Started!"
+    print datetime.datetime.now(), "Start collecting"
     HK = EAGLE()
     HK.startGetHawkEyeData()
 
