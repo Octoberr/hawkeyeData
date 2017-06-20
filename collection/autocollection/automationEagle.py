@@ -25,6 +25,7 @@ HEADER = {'Connection': 'keep-alive', 'User-Agent': BROWSER}
 AK = 'DIm4fQkBGR2aZWorGMDPILqclf46gAX5'
 serviceID = 139760
 
+
 class EAGLE:
     def getBDAPI(self, entityName, startTime, endTime, page):
         global AK
@@ -111,12 +112,13 @@ class EAGLE:
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
         startBjDate = self.getTheStartTime()
+        endBjdate = datetime.datetime.now().date()
         for entityname in entityNameVec:
             if startBjDate is not None:
                 startDate = startBjDate + datetime.timedelta(days=1)
             else:
                 startDate = datetime.date(2017, 05, 03)
-            while startDate < datetime.datetime.now().date():
+            while startDate < endBjdate:
                 for i in xrange(len(timeTable)-1):
                     startTime = str(startDate) + timeTable[i]
                     endTime = str(startDate) + timeTable[i+1]
