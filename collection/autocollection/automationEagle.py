@@ -75,40 +75,33 @@ class EAGLE:
         from config import mongo_config
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
         db = client.swmdb
-        eagleyedates = db.eagleyedates
+        eagleyedates = db.hawkeyedatas
         cursor = eagleyedates.find({}, {"unixEndTime": 1, "unixStartTime": 1}).sort([("unixEndTime", -1)]).limit(1)
         for element in cursor:
             getunixtime = element['unixEndTime']
             bjtime = self.unixtimeToBjTime(getunixtime)
             return bjtime
 
-
     def insertintomongo(self, hawkeyedate):
         from config import mongo_config
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
         db = client.swmdb
-        eagleyedates = db.eagleyedates
+        eagleyedates = db.hawkeyedatas
         eagleyedates.insert(hawkeyedate)
         print 'insert mongodb success'
 
-    def processprovidedate(self, hawkeyeData, entityname,unixStartTime, unixEndTime):
-        eagledates = {}
-        eagledates['unixEndTime'] = unixEndTime
-        eagledates['unixStartTime'] = unixStartTime
-        eagledates['entityname'] = entityname
-        eagledates['distance'] = hawkeyeData['distance']
-        eagledates['endPoint'] = hawkeyeData['end_point']
-        eagledates['points'] = hawkeyeData['points']
-        eagledates['startPoint'] = hawkeyeData['start_point']
-        eagledates['tollDistance'] = hawkeyeData['toll_distance']
-        return eagledates
+    def processprovidedate(self, hawkeyeData, entityname,):
+        addentityname = hawkeyeData['points']
+        for element in addentityname:
+            element['entityname'] = entityname
+        return addentityname
 
     def nextPage(self, hawkeyedate, entityname, unixStartTime, unixEndTime):
         pageSum = hawkeyedate['total']/5000
         lastPage = pageSum + 1
         for i in xrange(1, lastPage):
             restdata = self.getBDAPI(entityname, unixStartTime, unixEndTime, i)
-            eagledates = self.processprovidedate(restdata, entityname, unixStartTime, unixEndTime)
+            eagledates = self.processprovidedate(restdata, entityname)
             self.insertintomongo(eagledates)
 
     def startGetHawkEyeData(self):
@@ -133,10 +126,10 @@ class EAGLE:
                     if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
                         continue
                     elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                        eagledates = self.processprovidedate(hawkeyeData, entityname)
                         self.insertintomongo(eagledates)
                     elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                        eagledates = self.processprovidedate(hawkeyeData, entityname)
                         self.insertintomongo(eagledates)
                         self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
                     else:
