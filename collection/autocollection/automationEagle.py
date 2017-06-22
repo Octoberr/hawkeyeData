@@ -5,6 +5,9 @@ June 16, 2017
 chang
 Wangmeng Song
 June 16, 2017
+修改
+Wangmeng Song
+June 22, 2017
 """
 
 
@@ -76,8 +79,8 @@ class EAGLE:
         from config import mongo_config
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
         db = client.swmdb
-        eagleyedates = db.hawkeyedatas
-        cursor = eagleyedates.find({}, {"unixEndTime": 1, "unixStartTime": 1}).sort([("unixEndTime", -1)]).limit(1)
+        eagleyedates = db.hawkeyedata
+        cursor = eagleyedates.find({}, {"loc_time": 1, "unixEndTime": 1}).sort([("loc_time", -1)]).limit(1)
         for element in cursor:
             getunixtime = element['unixEndTime']
             bjtime = self.unixtimeToBjTime(getunixtime)
@@ -87,14 +90,15 @@ class EAGLE:
         from config import mongo_config
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
         db = client.swmdb
-        eagleyedates = db.hawkeyedatas
+        eagleyedates = db.hawkeyedata
         eagleyedates.insert(hawkeyedate)
-        print 'insert mongodb success'
+        print datetime.datetime.now(), 'insert mongodb success'
 
-    def processprovidedate(self, hawkeyeData, entityname,):
+    def processprovidedate(self, hawkeyeData, entityname, unixEndTime):
         addentityname = hawkeyeData['points']
         for element in addentityname:
             element['entityname'] = entityname
+            element['unixEndTime'] = unixEndTime
         return addentityname
 
     def nextPage(self, hawkeyedate, entityname, unixStartTime, unixEndTime):
@@ -128,10 +132,10 @@ class EAGLE:
                     if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
                         continue
                     elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname)
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
                         self.insertintomongo(eagledates)
                     elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname)
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
                         self.insertintomongo(eagledates)
                         self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
                     else:
