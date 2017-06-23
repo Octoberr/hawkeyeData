@@ -8,6 +8,9 @@ June 16, 2017
 修改
 Wangmeng Song
 June 22, 2017
+修改
+Wangmeng Song
+June 23, 2017
 """
 
 
@@ -72,7 +75,7 @@ class EAGLE:
         return unixTime
 
     def unixtimeToBjTime(self, nowUnixtime):
-        bjtime = datetime.datetime.fromtimestamp(nowUnixtime).date()
+        bjtime = datetime.datetime.fromtimestamp(nowUnixtime)
         return bjtime
 
     def getTheStartTime(self):
@@ -80,7 +83,7 @@ class EAGLE:
         client = pymongo.MongoClient(host=mongo_config['host'], port=mongo_config['port'])
         db = client.swmdb
         eagleyedates = db.hawkeyedata
-        cursor = eagleyedates.find({}, {"loc_time": 1, "unixEndTime": 1}).sort([("loc_time", -1)]).limit(1)
+        cursor = eagleyedates.find({}, {"loc_time": 1, "unixEndTime": 1}).sort([("unixEndTime", -1)]).limit(1)
         for element in cursor:
             getunixtime = element['unixEndTime']
             bjtime = self.unixtimeToBjTime(getunixtime)
@@ -110,37 +113,52 @@ class EAGLE:
             self.insertintomongo(eagledates)
 
     def startGetHawkEyeData(self):
-        timeTable = ["00:00:00", "12:00:00", "23:59:59"]
         entityNameVec = [191, 901, 905, 906, 909, 910, 912, 913, 915, 918, 920, 921, 922, 923, 925,
                          926, 928, 929, 930, 932, 933, 935, 936, 938, 939, 950, 951, 952, 956, 958,
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
         startBjDate = self.getTheStartTime()
-        endBjdate = datetime.datetime.now().date()
-        for entityname in entityNameVec:
-            if startBjDate is not None:
-                startDate = startBjDate + datetime.timedelta(days=1)
-            else:
+        if startBjDate is not None:
+            unixStartTime = self.bjtimeToUnixtime(startBjDate)
+            endDate = datetime.datetime.now().strftime("%Y-%m-%d%H:%M:%S")
+            unixEndTime = self.bjtimeToUnixtime(endDate)
+            for entityname in entityNameVec:
+                hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
+                if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
+                    continue
+                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
+                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                    self.insertintomongo(eagledates)
+                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
+                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                    self.insertintomongo(eagledates)
+                    self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                else:
+                    self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+        else:
+            timeTable = ["00:00:00", "12:00:00", "23:59:59"]
+            endBjdate = datetime.datetime.now().date()
+            for entityname in entityNameVec:
                 startDate = datetime.date(2017, 05, 03)
-            while startDate < endBjdate:
-                for i in xrange(len(timeTable)-1):
-                    startTime = str(startDate) + timeTable[i]
-                    endTime = str(startDate) + timeTable[i+1]
-                    unixStartTime = self.bjtimeToUnixtime(startTime)
-                    unixEndTime = self.bjtimeToUnixtime(endTime)
-                    hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
-                    if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
-                        continue
-                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
-                        self.insertintomongo(eagledates)
-                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
-                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
-                        self.insertintomongo(eagledates)
-                        self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
-                    else:
-                        self.writeErrorLog(entityname, unixStartTime, unixEndTime)
-                startDate += datetime.timedelta(days=1)
+                while startDate < endBjdate:
+                    for i in xrange(len(timeTable)-1):
+                        startTime = str(startDate) + timeTable[i]
+                        endTime = str(startDate) + timeTable[i+1]
+                        unixStartTime = self.bjtimeToUnixtime(startTime)
+                        unixEndTime = self.bjtimeToUnixtime(endTime)
+                        hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
+                        if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
+                            continue
+                        elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
+                            eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                            self.insertintomongo(eagledates)
+                        elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
+                            eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                            self.insertintomongo(eagledates)
+                            self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                        else:
+                            self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+                    startDate += datetime.timedelta(days=1)
 
 
 def main():
@@ -154,5 +172,5 @@ if __name__ == '__main__':
     main()
     scheduler = BlockingScheduler()
     # scheduler.add_job(some_job, 'interval', hours=1)
-    scheduler.add_job(main, 'interval', hours=24)
+    scheduler.add_job(main, 'interval', minutes=5)
     scheduler.start()
