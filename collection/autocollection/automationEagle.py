@@ -11,6 +11,7 @@ June 22, 2017
 修改
 Wangmeng Song
 June 23, 2017
+June 24, 2017
 """
 
 
@@ -71,7 +72,7 @@ class EAGLE:
         f.close()
 
     def bjtimeToUnixtime(self, nowtime):
-        unixTime = int(time.mktime(time.strptime(nowtime, '%Y-%m-%d%H:%M:%S')))
+        unixTime = int(time.mktime(time.strptime(nowtime, '%Y-%m-%d %H:%M:%S')))
         return unixTime
 
     def unixtimeToBjTime(self, nowUnixtime):
@@ -109,7 +110,7 @@ class EAGLE:
         lastPage = pageSum + 1
         for i in xrange(1, lastPage):
             restdata = self.getBDAPI(entityname, unixStartTime, unixEndTime, i)
-            eagledates = self.processprovidedate(restdata, entityname)
+            eagledates = self.processprovidedate(restdata, entityname, unixEndTime)
             self.insertintomongo(eagledates)
 
     def startGetHawkEyeData(self):
@@ -118,9 +119,10 @@ class EAGLE:
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
         startBjDate = self.getTheStartTime()
+        print startBjDate
         if startBjDate is not None:
-            unixStartTime = self.bjtimeToUnixtime(startBjDate)
-            endDate = datetime.datetime.now().strftime("%Y-%m-%d%H:%M:%S")
+            unixStartTime = self.bjtimeToUnixtime(str(startBjDate))
+            endDate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             unixEndTime = self.bjtimeToUnixtime(endDate)
             for entityname in entityNameVec:
                 hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
@@ -142,8 +144,8 @@ class EAGLE:
                 startDate = datetime.date(2017, 05, 03)
                 while startDate < endBjdate:
                     for i in xrange(len(timeTable)-1):
-                        startTime = str(startDate) + timeTable[i]
-                        endTime = str(startDate) + timeTable[i+1]
+                        startTime = str(startDate) + " " + timeTable[i]
+                        endTime = str(startDate) + " " + timeTable[i+1]
                         unixStartTime = self.bjtimeToUnixtime(startTime)
                         unixEndTime = self.bjtimeToUnixtime(endTime)
                         hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
