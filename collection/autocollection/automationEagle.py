@@ -12,6 +12,7 @@ June 22, 2017
 Wangmeng Song
 June 23, 2017
 June 24, 2017
+June 28,2017
 """
 
 
@@ -42,7 +43,7 @@ class EAGLE:
         jsondata = json.loads(self.queryJson(url))
         return jsondata
 
-    @retry
+    @retry(stop_max_attempt_number=5, stop_max_delay=30000, wait_fixed=50)
     def queryJson(self, url):
         while True:
             try:
@@ -119,24 +120,50 @@ class EAGLE:
                          960, 961, 962, 963, 965, 966, 968, 969, 971, 972, 975, 976, 978, 979, 980,
                          981, 982, 983, 985, 986, 987]
         startBjDate = self.getTheStartTime()
-        print startBjDate
+        # print "startdata", startBjDate
         if startBjDate is not None:
-            unixStartTime = self.bjtimeToUnixtime(str(startBjDate))
-            endDate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            unixEndTime = self.bjtimeToUnixtime(endDate)
-            for entityname in entityNameVec:
-                hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
-                if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
-                    continue
-                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
-                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
-                    self.insertintomongo(eagledates)
-                elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
-                    eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
-                    self.insertintomongo(eagledates)
-                    self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
-                else:
-                    self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+            endDate = datetime.datetime.now().date()
+            if endDate - datetime.timedelta(days=1) <= startBjDate.date():
+                unixStartTime = self.bjtimeToUnixtime(str(startBjDate))
+                endDate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                unixEndTime = self.bjtimeToUnixtime(endDate)
+                for entityname in entityNameVec:
+                    hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
+                    if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
+                        continue
+                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                        self.insertintomongo(eagledates)
+                    elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
+                        eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                        self.insertintomongo(eagledates)
+                        self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                    else:
+                        self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+            else:
+                timeTable = ["00:00:00", "12:00:00", "23:59:59"]
+                endBjdate = datetime.datetime.now().date()
+                for entityname in entityNameVec:
+                    startDate = startBjDate.date() + datetime.timedelta(days=1)
+                    while startDate < endBjdate:
+                        for i in xrange(len(timeTable) - 1):
+                            startTime = str(startDate) + " " + timeTable[i]
+                            endTime = str(startDate) + " " + timeTable[i + 1]
+                            unixStartTime = self.bjtimeToUnixtime(startTime)
+                            unixEndTime = self.bjtimeToUnixtime(endTime)
+                            hawkeyeData = self.getBDAPI(entityname, unixStartTime, unixEndTime, 1)
+                            if (hawkeyeData['status'] is 0) and (hawkeyeData['total'] is 0):
+                                continue
+                            elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] <= 5000):
+                                eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                                self.insertintomongo(eagledates)
+                            elif (hawkeyeData['status'] is 0) and (hawkeyeData['total'] > 5000):
+                                eagledates = self.processprovidedate(hawkeyeData, entityname, unixEndTime)
+                                self.insertintomongo(eagledates)
+                                self.nextPage(hawkeyeData, entityname, unixStartTime, unixEndTime)
+                            else:
+                                self.writeErrorLog(entityname, unixStartTime, unixEndTime)
+                        startDate += datetime.timedelta(days=1)
         else:
             timeTable = ["00:00:00", "12:00:00", "23:59:59"]
             endBjdate = datetime.datetime.now().date()
